@@ -11,7 +11,7 @@ var subscriptionLevelCounter map[string]ThrottleData
 
 func InitThrottleDataReceiver() {
 	InitiateThrottleCounters()
-    InitiateCleanUpTask()
+	InitiateCleanUpTask()
 }
 
 func InitiateThrottleCounters() {
@@ -30,6 +30,4 @@ func getThrottleCounters() (map[string]ThrottleData, map[string]ThrottleData, ma
 func processNonThrottledEvent(throttleEvent dtos.RequestStreamDTO) {
 	setDataReference(throttleEvent)
 	go run()
-
 }
-

@@ -14,18 +14,24 @@ import (
 func updateCounters(apiKey string, appKey string, stopOnQuota bool, subscriptionKey string, appTierCount int64,
 	appTierUnitTime int64, appTierTimeUnit string, apiTierCount int64, apiTierUnitTime int64, apiTierTimeUnit string,
 	subscriptionTierCount int64, subscriptionTierUnitTime int64, subscriptionTierTimeUnit string, resourceKey string,
-	resourceTierCount int64, resourceTierUnitTime int64, resourceTierTimeUnit string, timestamp int64){
+	resourceTierCount int64, resourceTierUnitTime int64, resourceTierTimeUnit string, timestamp int64) {
 	apiLevelCounter, resourceLevelCounter, applicationLevelCounter, subscriptionLevelCounter = getThrottleCounters()
-	updateMapCounters(apiLevelCounter, apiKey, stopOnQuota, apiTierCount, apiTierUnitTime, apiTierTimeUnit, timestamp, 
+	updateMapCounters(apiLevelCounter, apiKey, stopOnQuota, apiTierCount, apiTierUnitTime, apiTierTimeUnit, timestamp,
 		ThrottleType(3))
+	updateMapCounters(resourceLevelCounter, resourceKey, stopOnQuota, resourceTierCount, resourceTierUnitTime,
+		resourceTierTimeUnit, timestamp, ThrottleType(2))
+	updateMapCounters(applicationLevelCounter, appKey, stopOnQuota, appTierCount, appTierUnitTime, appTierTimeUnit,
+		timestamp, ThrottleType(0))
+	updateMapCounters(subscriptionLevelCounter, subscriptionKey, stopOnQuota, subscriptionTierCount,
+		subscriptionTierUnitTime, subscriptionTierTimeUnit, timestamp, ThrottleType(2))
 }
 
 func updateMapCounters(counterMap map[string]ThrottleData, throttleKey string, stopOnQuota bool, limit int64,
-	unitTime int64, timeUnit string, timestamp int64, throttleType ThrottleType){
-	throttleData,found := counterMap[throttleKey]
+	unitTime int64, timeUnit string, timestamp int64, throttleType ThrottleType) {
+	throttleData, found := counterMap[throttleKey]
 	if found {
 		count := throttleData.getCount() + 1
-		if limit>0 && count >= limit {
+		if limit > 0 && count >= limit {
 			throttleData.setThrottled(true)
 		} else {
 			throttleData.setThrottled(false)
@@ -36,7 +42,7 @@ func updateMapCounters(counterMap map[string]ThrottleData, throttleKey string, s
 			throttleData.setWindowStartTime(startTime)
 			throttleData.setThrottled(false)
 		}
-		log.Infof("Throttle count for the key %v is %v" ,throttleKey, throttleData.getCount())
+		log.Infof("Throttle count for the key %v is %v", throttleKey, throttleData.getCount())
 	} else {
 		var throttleData ThrottleData = ThrottleData{}
 		var startTime int64 = timestamp - (timestamp % getTimeInMilliSeconds(1, timeUnit))
@@ -46,6 +52,7 @@ func updateMapCounters(counterMap map[string]ThrottleData, throttleKey string, s
 		throttleData.setThrottleType(throttleType)
 		throttleData.setCount(0)
 		throttleData.setThrottleKey(throttleKey)
+		addThrottleData(throttleData)
 		counterMap[throttleKey] = throttleData
 	}
 
@@ -67,35 +74,31 @@ func isSubsLevelThrottled(subscriptionKey string) bool {
 	return isRequestThrottled(subscriptionLevelCounter, subscriptionKey)
 }
 
-func K(apiKey string) bool {
-	return isRequestThrottled(apiLevelCounter, apiKey)
-}
-
 func removeFromResourceCounterMap(key string) {
 	delete(resourceLevelCounter, key)
 }
 
-func removeFromApplicationCounterMap(key string){
+func removeFromApplicationCounterMap(key string) {
 	delete(applicationLevelCounter, key)
 }
 
-func removeFromApiCounterMap(key string){
+func removeFromApiCounterMap(key string) {
 	delete(apiLevelCounter, key)
 }
 
-func removeFromSubscriptionCounterMap(key string){
+func removeFromSubscriptionCounterMap(key string) {
 	delete(subscriptionLevelCounter, key)
 }
 
 func isRequestThrottled(counterMap map[string]ThrottleData, throttleKey string) bool {
-	if _,found := counterMap[throttleKey];found {
+	if _, found := counterMap[throttleKey]; found {
 		var currentTime int64 = getCurrentTimeMillis()
 		var throttleData ThrottleData = counterMap[throttleKey]
-		if currentTime > throttleData.getWindowStartTime() + throttleData.getUnitTime() {
+		if currentTime > throttleData.getWindowStartTime()+throttleData.getUnitTime() {
 			throttleData.setThrottled(false)
 			counterMap[throttleKey] = throttleData
 			log.Warnf("Throttle window has expired. CurrentTime : %v \n Window start time : %v \n Unit time : ",
-			currentTime, throttleData.getWindowStartTime(), throttleData.getUnitTime() )
+				currentTime, throttleData.getWindowStartTime(), throttleData.getUnitTime())
 			return false
 		}
 		return throttleData.isThrottled()
@@ -106,24 +109,24 @@ func isRequestThrottled(counterMap map[string]ThrottleData, throttleKey string) 
 func getCurrentTimeMillis() int64 {
 	now := time.Now()
 	unixNano := now.UnixNano()
-	umillisec := unixNano/1000000
+	umillisec := unixNano / 1000000
 	//fmt.Println("Current time in millis> ", umillisec)
 	return umillisec
 }
 
-func getTimeInMilliSeconds(unitTime int64, timeUnit string) int64{
+func getTimeInMilliSeconds(unitTime int64, timeUnit string) int64 {
 	var milliSeconds int64
-	if strings.EqualFold("min",timeUnit) {
+	if strings.EqualFold("min", timeUnit) {
 		milliSeconds = time.Minute.Milliseconds() * unitTime
-	} else if strings.EqualFold("hour",timeUnit) {
+	} else if strings.EqualFold("hour", timeUnit) {
 		milliSeconds = time.Hour.Milliseconds() * unitTime
-	} else if strings.EqualFold("day",timeUnit) {
+	} else if strings.EqualFold("day", timeUnit) {
 		milliSeconds = 24 * time.Hour.Milliseconds() * unitTime
-	} else if strings.EqualFold("week",timeUnit){
+	} else if strings.EqualFold("week", timeUnit) {
 		milliSeconds = 7 * 24 * time.Hour.Milliseconds() * unitTime
-	} else if strings.EqualFold("month",timeUnit){
+	} else if strings.EqualFold("month", timeUnit) {
 		milliSeconds = 30 * 24 * time.Hour.Milliseconds() * unitTime
-	} else if strings.EqualFold("year",timeUnit){
+	} else if strings.EqualFold("year", timeUnit) {
 		milliSeconds = 365 * 24 * time.Hour.Milliseconds() * unitTime
 	} else {
 		log.Warnf("Unsupported time unit provided")
