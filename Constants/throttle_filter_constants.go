@@ -1,0 +1,16 @@
+package Constants
+
+const RESOURCE_LEVEL_PREFIX   = "res_"
+const UNLIMITED_TIER  = "Unlimited"
+const KEY_THROTTLE_FILTER = "ThrottleFilter"
+const AUTHENTICATION_CONTEXT = "AUTHENTICATION_CONTEXT"
+const TIER = "tier"
+const SUB_LEVEL_PREFIX = "sub_"
+const APPLICATION_ID = "applicationId"
+const APPLICATION_TIER = "applicationTier"
+const APP_LEVEL_PREFIX = "app_"
+const USERNAME = "username"
+const IS_SECURED = "IS_SECURED"
+const UNAUTHENTICATED_TIER = "Unauthenticated"
+const KEY_TYPE_ATTR = "KEY_TYPE"
+const PRODUCTION_KEY_TYPE = "PRODUCTION"
