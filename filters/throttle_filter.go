@@ -61,7 +61,6 @@ func getDeployedPolicies() map[string]map[string]string {
 			"stopOnQuota": "true",
 		},
 	}
-	//aaa
 	return deployedPolicies
 }
 
