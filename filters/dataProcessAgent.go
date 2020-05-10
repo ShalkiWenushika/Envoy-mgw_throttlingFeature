@@ -1,6 +1,9 @@
 package filters
 
-import "envoy-test-filter/dtos"
+import (
+	"envoy-test-filter/dtos"
+	"sync"
+)
 
 var apiKey string
 var appKey string
@@ -21,7 +24,7 @@ var resourceTierUnitTime int64
 var resourceTierTimeUnit string
 var timestamp int64
 
-func setDataReference (throttleData dtos.RequestStreamDTO) {
+func setDataReference(throttleData dtos.RequestStreamDTO) {
 	appKey = throttleData.AppKey
 	appTierCount = throttleData.AppTierCount
 	appTierUnitTime = throttleData.AppTierUnitTime
@@ -42,9 +45,9 @@ func setDataReference (throttleData dtos.RequestStreamDTO) {
 	timestamp = getCurrentTimeMillis()
 }
 
-func run () {
+func run(mtx *sync.Mutex, ch chan map[string]ThrottleData) {
 	updateCounters(apiKey, appKey, stopOnQuota, subscriptionKey, appTierCount, appTierUnitTime,
 		appTierTimeUnit, apiTierCount, apiTierUnitTime, apiTierTimeUnit, subscriptionTierCount,
 		subscriptionTierUnitTime, subscriptionTierTimeUnit, resourceKey, resourceTierCount,
-		resourceTierUnitTime, resourceTierTimeUnit, timestamp)
+		resourceTierUnitTime, resourceTierTimeUnit, timestamp, mtx, ch)
 }

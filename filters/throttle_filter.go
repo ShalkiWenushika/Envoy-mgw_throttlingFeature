@@ -4,7 +4,6 @@ import (
 	"context"
 	"envoy-test-filter/Constants"
 	"envoy-test-filter/dtos"
-	_ "envoy-test-filter/utils"
 	"fmt"
 	_ "github.com/cactus/go-statsd-client/statsd"
 	ext_authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
@@ -18,101 +17,75 @@ import (
 
 var enabledGlobalTMEventPublishing bool = false
 
-type policyDetails struct {
-	Count int  `json:"count"`
-	UnitTime int `json:"unitTime"`
-	TimeUnit string `json:"timeUnit"`
-	StopOnQuota bool `json:"stopOnQuota"`
-}
-
-func ThrottleFilter(ctx context.Context, req *ext_authz.CheckRequest) (*ext_authz.CheckResponse, error){
+func ThrottleFilter(ctx context.Context, req *ext_authz.CheckRequest) (*ext_authz.CheckResponse, error) {
 
 	fmt.Println("Processing the request in ThrottleFilter>>>>>>>>>>>>>>")
 	fmt.Println("Context: ", ctx)
-    deployedPolicies := getDeployedPolicies()
-    //fmt.Println("deployed policies: ", deployedPolicies)
+	deployedPolicies := getDeployedPolicies()
+	//fmt.Println("deployed policies: ", deployedPolicies)
 	doThrottleFilterRequest(ctx, deployedPolicies)
-    //shalki()
+	//shalki()
 	//getApiLevelCounter()
 	//getTimeInMilliSeconds(1,"min")
 	//getCurrentTimeMillis()
 	//getType()
 
-
 	resp := &ext_authz.CheckResponse{}
 	resp = &ext_authz.CheckResponse{
 		Status: &status.Status{Code: int32(rpc.OK)},
 		HttpResponse: &ext_authz.CheckResponse_OkResponse{
-			OkResponse: &ext_authz.OkHttpResponse{
-
-			},
+			OkResponse: &ext_authz.OkHttpResponse{},
 		},
 	}
 	return resp, nil
 }
 
-func getType() {
-	b := "shalki"
-	var a bool = (string(reflect.TypeOf(b).Kind()) == "string")
-	fmt.Println("b shalki> %#v ",a)
-	fmt.Println(reflect.TypeOf(b).Kind())
-	shal  := reflect.TypeOf(b).String()
-	fmt.Println("shal> "+ shal)
-	if (reflect.TypeOf(shal).String()) == "string" {
-		fmt.Println("yessss")
-	}
-	c := 123
-	a = (string(reflect.TypeOf(c).Kind()) == "string")
-	fmt.Println("c 123 > %#v ",a)
-
-}
-
-func getDeployedPolicies() map[string]map[string]string{
-    deployedPolicies := map[string]map[string]string{
-		"app_50PerMin" : map[string]string{
-			"count" : "50",
-			"unitTime" : "1",
-			"timeUnit" : "min",
-			"stopOnQuota" : "true",
+func getDeployedPolicies() map[string]map[string]string {
+	deployedPolicies := map[string]map[string]string{
+		"app_50PerMin": map[string]string{
+			"count":       "50",
+			"unitTime":    "1",
+			"timeUnit":    "min",
+			"stopOnQuota": "true",
 		},
-	 	"app_20PerMin" : map[string]string{
-			"count" : "20",
-			"unitTime" : "1",
-			"timeUnit" : "min",
-			"stopOnQuota" : "true",
+		"app_20PerMin": map[string]string{
+			"count":       "20",
+			"unitTime":    "1",
+			"timeUnit":    "min",
+			"stopOnQuota": "true",
 		},
-		"res_10PerMin" : map[string]string{
-			"count" : "10",
-			"unitTime" : "1",
-			"timeUnit" : "min",
-			"stopOnQuota" : "true",
+		"res_10PerMin": map[string]string{
+			"count":       "10",
+			"unitTime":    "1",
+			"timeUnit":    "min",
+			"stopOnQuota": "true",
 		},
 	}
 	return deployedPolicies
 }
 
-func getInvocationContext() map[string]string{
+func getInvocationContext() map[string]string {
 	invocationContext := map[string]string{
-		"AUTHENTICATION_CONTEXT" : "authenticated",
-		"IS_SECURED" : "false",
-		"KEY_TYPE" : "PRODUCTION",
+		"AUTHENTICATION_CONTEXT": "authenticated",
+		"IS_SECURED":             "false",
+		"KEY_TYPE":               "PRODUCTION",
 	}
 	return invocationContext
 }
 
 func getKeyValidationResult() map[string]string {
-	keyValidationResult := map[string]string {
-		"authenticated" : "true",
-		"username" : "admin",
-		"applicationTier" : "Unlimited",
-		"tier" : "Default",
-		"apiTier" : "Unlimited",
-		"applicationId" : "899",
+	keyValidationResult := map[string]string{
+		"authenticated":   "true",
+		"username":        "admin",
+		"applicationTier": "Unlimited",
+		"tier":            "Default",
+		"apiTier":         "Unlimited",
+		"applicationId":   "899",
 	}
 	return keyValidationResult
 }
 
-func doThrottleFilterRequest(ctx context.Context, deployedPolicies map[string]map[string]string) bool{
+func doThrottleFilterRequest(ctx context.Context, deployedPolicies map[string]map[string]string) bool {
 	invocationContext := getInvocationContext()
 	log.Debugf(Constants.KEY_THROTTLE_FILTER + "Processing the request in ThrottleFilter")
 	//Throttled decisions
@@ -125,9 +98,9 @@ func doThrottleFilterRequest(ctx context.Context, deployedPolicies map[string]ma
 	var apiVersion string = "1.0.0"
 	var resourceLevelPolicyName string = "50PerMin"
 	keyValidationResult := map[string]string{}
-	if _,found := invocationContext[Constants.AUTHENTICATION_CONTEXT];found {
+	if _, found := invocationContext[Constants.AUTHENTICATION_CONTEXT]; found {
 		log.Debugf(Constants.KEY_THROTTLE_FILTER + "Context contains Authentication Context")
-		keyValidationResult =  getKeyValidationResult()
+		keyValidationResult = getKeyValidationResult()
 		var apiLevelPolicy string = "10PerMin"
 		if !checkAPILevelThrottled(ctx, apiLevelPolicy, apiVersion, deployedPolicies) {
 			return false
@@ -219,18 +192,18 @@ func doThrottleFilterRequest(ctx context.Context, deployedPolicies map[string]ma
 }
 
 func checkAPILevelThrottled(ctx context.Context, apiLevelPolicy string, apiVersion string,
-	deployedPolicies map[string]map[string]string) bool{
-	log.Debugf("Checking api level throttle policy " +apiLevelPolicy+ " exist.")
+	deployedPolicies map[string]map[string]string) bool {
+	log.Debugf("Checking api level throttle policy " + apiLevelPolicy + " exist.")
 	if apiLevelPolicy != Constants.UNLIMITED_TIER && !isPolicyExist(deployedPolicies, apiLevelPolicy,
-		Constants.RESOURCE_LEVEL_PREFIX){
-		log.Debugf(Constants.KEY_THROTTLE_FILTER +", API level throttle policy " + apiLevelPolicy +
+		Constants.RESOURCE_LEVEL_PREFIX) {
+		log.Debugf(Constants.KEY_THROTTLE_FILTER + ", API level throttle policy " + apiLevelPolicy +
 			"does not exist.")
 		//setThrottleErrorMessageToContext
 		//sendErrorResponse
 		return false
 	}
-    log.Debugf(Constants.KEY_THROTTLE_FILTER+", Checking API level throttling-out.")
-	if isAPILevelThrottled(ctx,apiVersion) {
+	log.Debugf(Constants.KEY_THROTTLE_FILTER + ", Checking API level throttling-out.")
+	if isAPILevelThrottled(ctx, apiVersion) {
 		log.Debugf(Constants.KEY_THROTTLE_FILTER + "API level throttled out. Sending throttled out response.")
 		//set context attributes
 		//setThrottleErrorMessageToContext
@@ -245,8 +218,8 @@ func checkAPILevelThrottled(ctx context.Context, apiLevelPolicy string, apiVersi
 func checkResourceLevelThrottled(ctx context.Context, resourceLevelPolicyName string, apiVersion string,
 	deployedPolicies map[string]map[string]string) bool {
 	if (reflect.TypeOf(resourceLevelPolicyName).String()) == "string" {
-		log.Debugf(Constants.KEY_THROTTLE_FILTER + "Resource level throttle policy : "+ resourceLevelPolicyName)
-		if len(resourceLevelPolicyName) >0 && resourceLevelPolicyName != Constants.UNLIMITED_TIER &&
+		log.Debugf(Constants.KEY_THROTTLE_FILTER + "Resource level throttle policy : " + resourceLevelPolicyName)
+		if len(resourceLevelPolicyName) > 0 && resourceLevelPolicyName != Constants.UNLIMITED_TIER &&
 			!isPolicyExist(deployedPolicies, resourceLevelPolicyName, Constants.RESOURCE_LEVEL_PREFIX) {
 			log.Debugf(Constants.KEY_THROTTLE_FILTER + "Resource level throttle policy " +
 				resourceLevelPolicyName + " does not exist.")
@@ -265,7 +238,7 @@ func checkResourceLevelThrottled(ctx context.Context, resourceLevelPolicyName st
 	return true
 }
 
-func isAPILevelThrottled(ctx context.Context, apiVersion string) bool{
+func isAPILevelThrottled(ctx context.Context, apiVersion string) bool {
 	var apiThrottleKey string = "/petstore/v1"
 	if (reflect.TypeOf(apiVersion).String()) == "string" {
 		apiThrottleKey += ":" + apiVersion
@@ -277,10 +250,10 @@ func isAPILevelThrottled(ctx context.Context, apiVersion string) bool{
 		isApiLevelThrottled(apiThrottleKey)
 	}
 
-return true
+	return true
 }
 
-func isResourceLevelThrottled(ctx context.Context, policy string, deployedPolicies  map[string]map[string]string,
+func isResourceLevelThrottled(ctx context.Context, policy string, deployedPolicies map[string]map[string]string,
 	apiVersion string) bool {
 	if (reflect.TypeOf(policy).String()) == "string" {
 		if policy == Constants.UNLIMITED_TIER {
@@ -315,7 +288,7 @@ func isSubscriptionLevelThrottled(ctx context.Context, keyValidationDto map[stri
 	}
 	log.Debugf(Constants.KEY_THROTTLE_FILTER + "Subscription level throttle key : " + subscriptionLevelThrottleKey)
 	if !enabledGlobalTMEventPublishing {
-		stopOnQuotaValue := deployedPolicies[Constants.SUB_LEVEL_PREFIX + keyValidationDto[Constants.TIER]]["stopOnQuota"]
+		stopOnQuotaValue := deployedPolicies[Constants.SUB_LEVEL_PREFIX+keyValidationDto[Constants.TIER]]["stopOnQuota"]
 		stopOnQuota, err := strconv.ParseBool(stopOnQuotaValue)
 		if err == nil {
 			var isThrottled bool = isSubsLevelThrottled(subscriptionLevelThrottleKey)
@@ -326,7 +299,7 @@ func isSubscriptionLevelThrottled(ctx context.Context, keyValidationDto map[stri
 }
 
 func isApplicationLevelThrottled(keyValidationDto map[string]string,
-	deployedPolicies map[string]map[string]string) bool{
+	deployedPolicies map[string]map[string]string) bool {
 	if keyValidationDto[Constants.APPLICATION_TIER] == Constants.UNLIMITED_TIER {
 		return false
 	}
@@ -339,10 +312,10 @@ func isApplicationLevelThrottled(keyValidationDto map[string]string,
 	return false
 }
 
-func isPolicyExist(deployedPolicies map[string]map[string]string, apiLevelPolicy string, prefix string) bool{
-	if _,found := deployedPolicies[prefix + apiLevelPolicy];found {
+func isPolicyExist(deployedPolicies map[string]map[string]string, apiLevelPolicy string, prefix string) bool {
+	if _, found := deployedPolicies[prefix+apiLevelPolicy]; found {
 		return true
-	} else{
+	} else {
 		return false
 	}
 }
@@ -358,11 +331,11 @@ func generateThrottleEvent(ctx context.Context, keyValidationDto map[string]stri
 		"API key : " + requestStreamDTO.ApiKey + "Resource Tier : " + requestStreamDTO.ResourceTier +
 		"Subscription Tier : " + requestStreamDTO.SubscriptionTier + "App Tier : " + requestStreamDTO.AppTier +
 		"API Tier : " + requestStreamDTO.ApiTier)
-    return requestStreamDTO
+	return requestStreamDTO
 }
 
 func generateLocalThrottleEvent(ctx context.Context, keyValidationDto map[string]string,
-	deployedPolicies map[string]map[string]string ) dtos.RequestStreamDTO {
+	deployedPolicies map[string]map[string]string) dtos.RequestStreamDTO {
 	requestStreamDTO := dtos.RequestStreamDTO{}
 	requestStreamDTO = setCommonThrottleData(ctx, keyValidationDto, deployedPolicies)
 	requestStreamDTO.AppTierCount = 1
@@ -423,5 +396,5 @@ func setCommonThrottleData(ctx context.Context, keyValidationDto map[string]stri
 
 func publishEvent(throttleEvent dtos.RequestStreamDTO) {
 	log.Debugf(Constants.KEY_THROTTLE_FILTER + "Checking application sending throttle event to another worker.")
-	processNonThrottledEvent(throttleEvent)
+	PublishNonThrottleEvent(throttleEvent)
 }

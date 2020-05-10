@@ -3,31 +3,32 @@ package filters
 import (
 	log "github.com/sirupsen/logrus"
 	"strings"
+	"sync"
 	"time"
 )
-
-//var apiLevelCounter = make(map[string]ThrottleData)
-//var resourceLevelCounter = make(map[string]ThrottleData)
-//var applicationLevelCounter = make(map[string]ThrottleData)
-//var subscriptionLevelCounter = make(map[string]ThrottleData)
 
 func updateCounters(apiKey string, appKey string, stopOnQuota bool, subscriptionKey string, appTierCount int64,
 	appTierUnitTime int64, appTierTimeUnit string, apiTierCount int64, apiTierUnitTime int64, apiTierTimeUnit string,
 	subscriptionTierCount int64, subscriptionTierUnitTime int64, subscriptionTierTimeUnit string, resourceKey string,
-	resourceTierCount int64, resourceTierUnitTime int64, resourceTierTimeUnit string, timestamp int64) {
-	apiLevelCounter, resourceLevelCounter, applicationLevelCounter, subscriptionLevelCounter = getThrottleCounters()
+	resourceTierCount int64, resourceTierUnitTime int64, resourceTierTimeUnit string, timestamp int64, mtx *sync.Mutex,
+	ch chan map[string]ThrottleData) {
+	apiLevelCounter := <-ch
+	resourceLevelCounter := <-ch
+	applicationLevelCounter := <-ch
+	subscriptionLevelCounter := <-ch
 	updateMapCounters(apiLevelCounter, apiKey, stopOnQuota, apiTierCount, apiTierUnitTime, apiTierTimeUnit, timestamp,
-		ThrottleType(3))
+		ThrottleType(3), mtx)
 	updateMapCounters(resourceLevelCounter, resourceKey, stopOnQuota, resourceTierCount, resourceTierUnitTime,
-		resourceTierTimeUnit, timestamp, ThrottleType(2))
+		resourceTierTimeUnit, timestamp, ThrottleType(2), mtx)
 	updateMapCounters(applicationLevelCounter, appKey, stopOnQuota, appTierCount, appTierUnitTime, appTierTimeUnit,
-		timestamp, ThrottleType(0))
+		timestamp, ThrottleType(0), mtx)
 	updateMapCounters(subscriptionLevelCounter, subscriptionKey, stopOnQuota, subscriptionTierCount,
-		subscriptionTierUnitTime, subscriptionTierTimeUnit, timestamp, ThrottleType(2))
+		subscriptionTierUnitTime, subscriptionTierTimeUnit, timestamp, ThrottleType(2), mtx)
+	updateToChannel(ch, apiLevelCounter, resourceLevelCounter, applicationLevelCounter, subscriptionLevelCounter)
 }
 
 func updateMapCounters(counterMap map[string]ThrottleData, throttleKey string, stopOnQuota bool, limit int64,
-	unitTime int64, timeUnit string, timestamp int64, throttleType ThrottleType) {
+	unitTime int64, timeUnit string, timestamp int64, throttleType ThrottleType, mtx *sync.Mutex) {
 	throttleData, found := counterMap[throttleKey]
 	if found {
 		count := throttleData.getCount() + 1
@@ -43,6 +44,9 @@ func updateMapCounters(counterMap map[string]ThrottleData, throttleKey string, s
 			throttleData.setThrottled(false)
 		}
 		log.Infof("Throttle count for the key %v is %v", throttleKey, throttleData.getCount())
+		mtx.Lock()
+		counterMap[throttleKey] = throttleData
+		mtx.Unlock()
 	} else {
 		var throttleData ThrottleData = ThrottleData{}
 		var startTime int64 = timestamp - (timestamp % getTimeInMilliSeconds(1, timeUnit))
@@ -53,40 +57,82 @@ func updateMapCounters(counterMap map[string]ThrottleData, throttleKey string, s
 		throttleData.setCount(0)
 		throttleData.setThrottleKey(throttleKey)
 		addThrottleData(throttleData)
+		mtx.Lock()
 		counterMap[throttleKey] = throttleData
+		mtx.Unlock()
 	}
 
 }
 
+func getApiLevelCounter() map[string]ThrottleData {
+	ch := getChannel()
+	apiLevelCounter := <-ch
+	return apiLevelCounter
+}
+
+func getResourceLevelCounter() map[string]ThrottleData {
+	ch := getChannel()
+	<-ch
+	resourceLevelCounter := <-ch
+	return resourceLevelCounter
+}
+
+func getApplicationLevelCounter() map[string]ThrottleData {
+	ch := getChannel()
+	<-ch
+	<-ch
+	<-ch
+	applicationLevelCounter := <-ch
+	return applicationLevelCounter
+}
+
+func getSubscriptionLevelCounter() map[string]ThrottleData {
+	ch := getChannel()
+	<-ch
+	<-ch
+	<-ch
+	<-ch
+	subscriptionLevelCounter := <-ch
+	return subscriptionLevelCounter
+}
+
 func isApiLevelThrottled(apiKey string) bool {
+	apiLevelCounter := getApiLevelCounter()
 	return isRequestThrottled(apiLevelCounter, apiKey)
 }
 
 func isResourceThrottled(resourceKey string) bool {
+	resourceLevelCounter := getResourceLevelCounter()
 	return isRequestThrottled(resourceLevelCounter, resourceKey)
 }
 
 func isAppLevelThrottled(appKey string) bool {
+	applicationLevelCounter := getApplicationLevelCounter()
 	return isRequestThrottled(applicationLevelCounter, appKey)
 }
 
 func isSubsLevelThrottled(subscriptionKey string) bool {
+	subscriptionLevelCounter := getSubscriptionLevelCounter()
 	return isRequestThrottled(subscriptionLevelCounter, subscriptionKey)
 }
 
 func removeFromResourceCounterMap(key string) {
+	resourceLevelCounter := getResourceLevelCounter()
 	delete(resourceLevelCounter, key)
 }
 
 func removeFromApplicationCounterMap(key string) {
+	applicationLevelCounter := getApplicationLevelCounter()
 	delete(applicationLevelCounter, key)
 }
 
 func removeFromApiCounterMap(key string) {
+	apiLevelCounter := getApiLevelCounter()
 	delete(apiLevelCounter, key)
 }
 
 func removeFromSubscriptionCounterMap(key string) {
+	subscriptionLevelCounter := getSubscriptionLevelCounter()
 	delete(subscriptionLevelCounter, key)
 }
 

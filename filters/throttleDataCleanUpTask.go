@@ -15,7 +15,7 @@ func InitiateCleanUpTask() {
 			case <-done:
 				return
 			case <-ticker.C:
-					cleanUpTask()
+				cleanUpTask()
 
 			}
 		}
@@ -27,15 +27,13 @@ func cleanUpTask() {
 	for i := 0; i < len(throttleDataList); i++ {
 		if cleanThrottleData(throttleDataList[i], currentTimeStamp) {
 			//remove throttle data from the list
-			throttleDataList[i] = throttleDataList[len(throttleDataList) - 1]
-			throttleDataList[len(throttleDataList) - 1] = ThrottleData{}
+			throttleDataList[i] = throttleDataList[len(throttleDataList)-1]
+			throttleDataList[len(throttleDataList)-1] = ThrottleData{}
 			throttleDataList = throttleDataList[:len(throttleDataList)-1]
 		}
 	}
 }
 
-func addThrottleData(throttleData ThrottleData){
+func addThrottleData(throttleData ThrottleData) {
 	throttleDataList = append(throttleDataList, throttleData)
 }
-
-

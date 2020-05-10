@@ -1,7 +1,7 @@
 package Constants
 
-const RESOURCE_LEVEL_PREFIX   = "res_"
-const UNLIMITED_TIER  = "Unlimited"
+const RESOURCE_LEVEL_PREFIX = "res_"
+const UNLIMITED_TIER = "Unlimited"
 const KEY_THROTTLE_FILTER = "ThrottleFilter"
 const AUTHENTICATION_CONTEXT = "AUTHENTICATION_CONTEXT"
 const TIER = "tier"
